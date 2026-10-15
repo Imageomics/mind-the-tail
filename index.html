@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+
+  <title>Mind the Tail: Data Selection Through Sparse Concepts</title>
+  <meta name="description" content="Data selection reallocates training support across visual concepts. Using sparse autoencoder concepts, we make that allocation explicit and study how support for tail concepts shapes downstream model behavior.">
+  <meta name="keywords" content="data selection, coreset selection, data pruning, sparse autoencoders, SAE, visual concepts, long tail, robustness, spurious correlation">
+  <meta name="author" content="Ziheng Zhang, Neha Hulkund, Colin Lee, Zheda Mai, Hui Shen, Ying Ding, Tanya Berger-Wolf, Sara Beery, Wei-Lun Chao, Jianyang Gu">
+  <meta name="theme-color" content="#5552cc">
+
+  <!-- Open Graph / Twitter
+       TODO: once the page is deployed, make og:url / og:image / twitter:image absolute URLs. -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Mind the Tail: Data Selection Through Sparse Concepts">
+  <meta property="og:description" content="Data selection reallocates training support across visual concepts. We make that allocation explicit with sparse autoencoders and study how the concept tail shapes model behavior.">
+  <meta property="og:image" content="static/images/og_teaser.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Mind the Tail: Data Selection Through Sparse Concepts">
+  <meta name="twitter:description" content="Data selection through sparse concepts: the long tail is where downstream behavior is shaped.">
+  <meta name="twitter:image" content="static/images/og_teaser.jpg">
+
+  <!-- Google Scholar -->
+  <meta name="citation_title" content="Mind the Tail: Data Selection Through Sparse Concepts">
+  <meta name="citation_author" content="Zhang, Ziheng">
+  <meta name="citation_author" content="Hulkund, Neha">
+  <meta name="citation_author" content="Lee, Colin">
+  <meta name="citation_author" content="Mai, Zheda">
+  <meta name="citation_author" content="Shen, Hui">
+  <meta name="citation_author" content="Ding, Ying">
+  <meta name="citation_author" content="Berger-Wolf, Tanya">
+  <meta name="citation_author" content="Beery, Sara">
+  <meta name="citation_author" content="Chao, Wei-Lun">
+  <meta name="citation_author" content="Gu, Jianyang">
+  <meta name="citation_publication_date" content="2026">
+
+  <link rel="icon" type="image/svg+xml" href="static/images/favicon.svg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="static/css/style.css?v=12">
+
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
+  <script src="static/js/main.js?v=5" defer></script>
+</head>
+
+<body>
+
+<!-- ============================================================
+     TABLE OF CONTENTS
+============================================================ -->
+<nav class="toc" id="toc" aria-label="Contents">
+  <button class="toc-toggle" type="button" aria-expanded="false" aria-controls="tocPanel">
+    <span class="toc-badge" aria-hidden="true"><i class="fas fa-list-ul"></i></span>
+    <span>Contents</span>
+    <i class="fas fa-chevron-down chev" aria-hidden="true"></i>
+  </button>
+  <div class="toc-panel" id="tocPanel">
+    <a href="#tldr"><i class="fas fa-align-left" aria-hidden="true"></i>TL;DR</a>
+    <a href="#method"><i class="fas fa-diagram-project" aria-hidden="true"></i>Method</a>
+    <a href="#reallocation"><i class="fas fa-chart-column" aria-hidden="true"></i>Concept Reallocation</a>
+    <a href="#nabirds"><i class="fas fa-dove" aria-hidden="true"></i>Case Study: NABirds</a>
+    <a href="#waterbirds"><i class="fas fa-water" aria-hidden="true"></i>Case Study: Waterbirds</a>
+    <a href="#design"><i class="fas fa-sliders" aria-hidden="true"></i>Design Choices</a>
+    <a href="#results"><i class="fas fa-table" aria-hidden="true"></i>Benchmark Results</a>
+    <a href="#bibtex"><i class="fas fa-quote-right" aria-hidden="true"></i>Citation</a>
+  </div>
+</nav>
+
+<button class="to-top" id="toTop" type="button" aria-label="Back to top"><i class="fas fa-arrow-up"></i></button>
+
+<main>
+
+<!-- ============================================================
+     HERO
+============================================================ -->
+<header class="hero">
+  <div class="container">
+    <span class="pill">
+      <svg viewBox="0 0 30 18" aria-hidden="true">
+        <rect x="0"  y="1"   width="3" height="17"  rx="0.8" fill="#3f8ee8"/>
+        <rect x="4"  y="7"   width="3" height="11"  rx="0.8" fill="#5884e4"/>
+        <rect x="8"  y="10"  width="3" height="8"   rx="0.8" fill="#6c6fd8"/>
+        <rect x="12" y="12"  width="3" height="6"   rx="0.8" fill="#7a68d8"/>
+        <rect x="16" y="13"  width="3" height="5"   rx="0.8" fill="#8a60d8"/>
+        <rect x="20" y="14"  width="3" height="4"   rx="0.8" fill="#9b5bd6"/>
+        <rect x="24" y="14.5" width="3" height="3.5" rx="0.8" fill="#a855f7"/>
+      </svg>
+      Concept-Based Data Selection
+    </span>
+
+    <h1 class="title">Mind the Tail</h1>
+    <p class="subtitle">Data Selection Through Sparse Concepts</p>
+
+    <!-- TODO: add homepage links, e.g. <a class="author" href="https://...">Ziheng Zhang</a> -->
+    <div class="authors">
+      <span class="author">Ziheng Zhang</span><sup>1,2&dagger;</sup><span class="sep">&middot;</span>
+      <span class="author">Neha Hulkund</span><sup>3</sup><span class="sep">&middot;</span>
+      <span class="author">Colin Lee</span><sup>1</sup><span class="sep">&middot;</span>
+      <span class="author">Zheda Mai</span><sup>1</sup><span class="sep">&middot;</span>
+      <span class="author">Hui Shen</span><sup>4</sup><br>
+      <span class="author">Ying Ding</span><sup>2</sup><span class="sep">&middot;</span>
+      <span class="author">Tanya Berger-Wolf</span><sup>1</sup><span class="sep">&middot;</span>
+      <span class="author">Sara Beery</span><sup>3</sup><span class="sep">&middot;</span>
+      <span class="author">Wei-Lun Chao</span><sup>5</sup><span class="sep">&middot;</span>
+      <span class="author">Jianyang Gu</span><sup>1,3&dagger;</sup>
+    </div>
+
+    <div class="affils">
+      <span><sup>1</sup>The Ohio State University</span>
+      <span><sup>2</sup>University of Texas at Austin</span>
+      <span><sup>3</sup>Massachusetts Institute of Technology</span>
+      <span><sup>4</sup>University of Michigan</span>
+      <span><sup>5</sup>Boston University</span>
+    </div>
+
+    <!-- Links. Buttons marked data-todo="true" still need their URL. -->
+    <div class="links">
+      <a class="btn" href="#" data-todo="true" target="_blank" rel="noopener">
+        <span class="ico"><i class="fas fa-file-pdf"></i></span><span>Paper</span>
+      </a>
+      <a class="btn" href="#" data-todo="true" target="_blank" rel="noopener">
+        <span class="ico"><i class="fab fa-github"></i></span><span>Code</span>
+      </a>
+      <a class="btn" href="#" data-todo="true" target="_blank" rel="noopener">
+        <span class="ico"><i class="ai ai-arxiv"></i></span><span>arXiv</span>
+      </a>
+      <a class="btn" href="#" data-todo="true" target="_blank" rel="noopener">
+        <span class="ico" aria-hidden="true">&#x1F917;</span><span>Models</span>
+      </a>
+      <a class="btn" href="#" data-todo="true" target="_blank" rel="noopener">
+        <span class="ico" aria-hidden="true">&#x1F917;</span><span>Data</span>
+      </a>
+      <a class="btn" href="mailto:zhang.13617@osu.edu,gu.1220@osu.edu">
+        <span class="ico"><i class="fas fa-envelope"></i></span><span>Contact</span>
+      </a>
+      <a class="btn" href="#bibtex">
+        <span class="ico"><i class="fas fa-quote-right"></i></span><span>Cite</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+
+<!-- ============================================================
+     ABSTRACT
+============================================================ -->
+<section class="section soft-fade tldr-section" id="tldr">
+  <div class="container">
+    <div class="abstract-box">
+      <p class="tldr-lead">
+        A training subset determines how much support each visual concept gets, from objects and attributes to
+        textures and backgrounds. Tail concepts appear in only a few images and are easy to lose when data is
+        reduced, which can hurt test-time robustness. We use <b>sparse-autoencoder concepts</b> to make this
+        allocation explicit and shift more support toward the <b>tail</b>.
+      </p>
+      <ul class="tldr-list">
+        <li>
+          <span class="tldr-tag">Method</span>
+          <span>We accumulate each concept's support as images are selected. <span class="hl blue">Diminishing
+          returns</span> lower the value of concepts that are already well covered, and <span class="hl violet">local
+          support</span> favors samples that, together with their neighbors, contribute to under-supported concepts, so
+          recurring underrepresented concepts are preferred over isolated occurrences.</span>
+        </li>
+        <li>
+          <span class="tldr-tag">Finding</span>
+          <span>Test images with concepts that gained support improve the most. Broader coverage of the tail, including
+          context unrelated to the class, also improves <span class="hl green">robustness to out-of-distribution and
+          spurious contexts</span>.</span>
+        </li>
+        <li>
+          <span class="tldr-tag">Results</span>
+          <span>Improvements over strong data selection baselines on fine-grained, spurious-correlation, and general
+          image classification, and on CLIP pretraining with CC12M, with the largest margins at small budgets.</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     OVERVIEW FIGURE (Fig. 1)
+============================================================ -->
+<section class="section soft" id="overview">
+  <div class="container">
+    <figure class="figure">
+      <img src="static/images/teaser.webp" width="2800" height="1215"
+           alt="Relative concept support of K-Center, Forgetting, D2-Pruning, and our method across concept prevalence; only ours amplifies rare concepts. Below, example SAE concepts from generic (bird, branch) through specific (elongated bill, bird feeder) to rare (human hand, facial disc).">
+      <figcaption>
+        <b>Data selection reallocates the concept distribution.</b>
+        Top: relative change in concept support in a 10% subset, from frequent to rare concepts. K-Center,
+        Forgetting, and D<sup>2</sup>-Pruning stay close to the original distribution, while ours amplifies tail
+        concepts.
+        Bottom: SAE concepts from <b>generic</b> (broadly supported) to <b>specific</b> (shared by a subset) to
+        <b>rare</b> (a few images).
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     METHOD
+============================================================ -->
+<section class="section tint" id="method">
+  <div class="container">
+    <div class="sec-head">
+      <span class="eyebrow">Method</span>
+      <h2>From Concept Value to Sample Value</h2>
+      <p class="lead">
+        We measure <b>concept coverage</b> to find <i>what evidence</i> the subset still needs, and <b>local
+        support</b> to decide <i>which samples</i> fill that gap.
+      </p>
+    </div>
+
+    <figure class="figure" style="margin-bottom: 56px;">
+      <img src="static/images/pipeline.webp" width="3000" height="769" loading="lazy"
+           alt="Pipeline: candidate images pass through a frozen foundation model and a sparse autoencoder to produce concept vectors. In concept space, a sample with a well-covered concept and an isolated sample with a rare concept are rejected, while a locally supported sample with a rare concept is selected.">
+      <figcaption>
+        <b>Overview.</b> SAEs turn foundation-model patch features into sparse concept vectors, and we track the
+        support each concept has in the subset. The objective favors samples whose under-supported concepts are also
+        carried by their neighbors, over samples that only add head concepts or sit alone in a rare region.
+      </figcaption>
+    </figure>
+
+    <!-- Step 1 -->
+    <div class="step">
+      <div>
+        <span class="step-num">Step 1</span>
+        <h3>Describe each image by its <em>sparse concepts</em></h3>
+        <p>
+          An SAE with \(C\) dimensions on DINOv3 patch features, max-pooled per image, gives a sparse concept vector
+          \(\mathbf{x}_i\), where \(\mathbf{x}_i[c]\) is the activation of concept \(c\).
+        </p>
+        <p>
+          SAE concepts follow a long-tailed distribution. Fine-grained attributes, uncommon objects, and context
+          variations appear in only a few images, which makes them easy to lose when data is reduced.
+        </p>
+      </div>
+      <div class="eq-card">
+        <div class="flow" aria-label="Image to patch features to SAE to max-pool to concept vector">
+          <span class="chip">Image \(I_i\)</span><span class="arrow"><i class="fas fa-arrow-right"></i></span>
+          <span class="chip">DINOv3 patches</span><span class="arrow"><i class="fas fa-arrow-right"></i></span>
+          <span class="chip">SAE</span><span class="arrow"><i class="fas fa-arrow-right"></i></span>
+          <span class="chip">max-pool</span><span class="arrow"><i class="fas fa-arrow-right"></i></span>
+          <span class="chip accent">\(\mathbf{x}_i \in \mathbb{R}^{C}\)</span>
+        </div>
+        <p class="eq-note" style="text-align:center; margin-top: 14px;">
+          Dimensions tend to fire on recurring visual patterns, such as a bill shape, a feeder, a hand, or a sky
+          background.
+        </p>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step">
+      <div>
+        <span class="step-num">Step 2</span>
+        <h3>Concept coverage: <em>where</em> is support missing?</h3>
+        <p>
+          As images are added, we accumulate each concept's support and apply diminishing returns. Well-covered
+          concepts become worth less, so under-supported ones become more competitive. The objective needs no explicit
+          definition of the tail or a target frequency.
+        </p>
+      </div>
+      <div class="eq-card">
+        <div class="eq">
+          $$F(\mathcal{S}) \;=\; \sum_{c=1}^{C} \log\!\Big(1 + \sum_{I_i \in \mathcal{S}} \mathbf{x}_i[c]\Big)$$
+        </div>
+        <p class="eq-note">The concave \(\log(1+\cdot)\) saturates head concepts and leaves room for the tail.</p>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step">
+      <div>
+        <span class="step-num">Step 3</span>
+        <h3>Local support: <em>which</em> samples fill the gap?</h3>
+        <p>
+          Rare concepts do not automatically dominate selection, because the samples that carry them may receive
+          limited local support when isolated. Each candidate also receives complementary credit for concepts recurring
+          among nearby samples, so recurring underrepresented concepts are favored over isolated occurrences.
+        </p>
+      </div>
+      <div class="eq-card">
+        <div class="eq">
+          $$\tilde{\mathbf{x}}_i[c] \;=\; \mathbf{x}_i[c] \;+\; \beta \!\!\sum_{t:\, I_i \in \mathcal{N}_k(t)}\!\! a_{ti}\, \mathbf{x}_t[c]$$
+        </div>
+        <p class="eq-note">
+          \(\mathcal{N}_k(t)\): the \(k\) nearest neighbors of \(I_t\) in SAE space; \(a_{ti}\): cosine similarity
+          normalized over the neighbors; \(\beta\): strength of local support.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     ANALYSIS: CONCEPT REALLOCATION
+============================================================ -->
+<section class="section" id="reallocation">
+  <div class="container">
+    <div class="sec-head">
+      <span class="eyebrow">Analysis</span>
+      <h2>Which Concepts Does a Subset Support?</h2>
+      <p class="lead">
+        Do different selectors change the concept distribution, and do the concepts that gain support matter
+        downstream?
+      </p>
+    </div>
+
+    <div class="block grid-2-1">
+      <div class="prose">
+        <h3 class="sub-head"><span class="tag">Finding</span>Different criteria, similar concept profiles</h3>
+        <p>
+          We profile each NABirds subset by how many concepts it covers, how evenly it spreads activation mass, and
+          how common its concepts are relative to the full dataset.
+        </p>
+        <p>
+          K-Center, Forgetting, and D<sup>2</sup>-Pruning end up close to random sampling on all three measures, while
+          our subset moves noticeably more support to tail concepts.
+        </p>
+      </div>
+      <div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Method</th><th>Unique coverage</th><th>Effective number</th><th>Prevalence ratio</th></tr>
+            </thead>
+            <tbody>
+              <tr class="ref"><td>Random</td><td>7,973</td><td>865</td><td>1.00</td></tr>
+              <tr><td>K-Center</td><td>8,215</td><td>893</td><td>0.97</td></tr>
+              <tr><td>Forgetting</td><td>8,120</td><td>888</td><td>0.97</td></tr>
+              <tr><td>D<sup>2</sup>-Pruning</td><td>8,099</td><td>887</td><td>0.97</td></tr>
+              <tr class="ours"><td>Ours</td><td>8,951</td><td>1,124</td><td>0.74</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-caption"><b>NABirds subsets.</b> A prevalence ratio below 1 means more support for tail concepts.</p>
+      </div>
+    </div>
+
+    <div class="block grid-1-1-center">
+      <figure class="figure">
+        <img src="static/images/fig_group_gain_slope.webp" width="1100" height="726" loading="lazy"
+             alt="Bar chart of accuracy gain over random selection for test images whose concepts were reduced, unchanged, or enhanced in training support, on NABirds and CC12M to ImageNet-1K linear probe. Enhanced concepts show the largest gains.">
+        <figcaption>
+          <b>Accuracy gain over random</b> on test images whose concepts lost, kept, or gained training support.
+        </figcaption>
+      </figure>
+      <div class="prose">
+        <h3 class="sub-head"><span class="tag">Finding</span>Enhanced concepts improve the most</h3>
+        <p>
+          We group concepts by how their training support changed relative to random selection, then test on images
+          where each concept is strongly active.
+        </p>
+        <p>
+          All three groups improve over random selection. Images with enhanced concepts improve the most, both on
+          NABirds and on ImageNet-1K after CLIP pretraining.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     CASE STUDY: NABIRDS
+============================================================ -->
+<section class="section dark" id="nabirds">
+  <div class="container">
+    <div class="sec-head">
+      <span class="eyebrow">Case Study &middot; NABirds</span>
+      <h2>When the Tail Is Context: The &ldquo;Human Hand&rdquo; Concept</h2>
+      <p class="lead">
+        Some enhanced concepts are discriminative features, such as bills and wings. Others, such as hands, signs,
+        and feeders, are not directly related to the species, and accuracy on test images with these concepts also
+        improves.
+      </p>
+    </div>
+
+    <figure class="figure">
+      <img src="static/images/concept_finer_cam.webp" width="2400" height="740" loading="lazy"
+           alt="Finer-CAM maps for test images with enhanced concepts: human hand, elongated bill, posted sign, roof edge, spread underwing, feeding bowl. Models trained on our subset focus on the bird; random and RAM-APL models often focus on the hand, sign, feeder, or bowl.">
+      <figcaption>
+        <b>Finer-CAM on enhanced concepts.</b> The model trained on our subset attends mostly to the bird, while the
+        models trained on random and RAM-APL subsets put more weight on the hand, sign, or feeder.
+      </figcaption>
+    </figure>
+
+    <div class="callout" style="margin-top: 28px;">
+      Contextual concepts such as a hand carry little information about the species. Spreading them across more
+      categories during training helps keep test images with that context in distribution and lowers the risk that
+      the context becomes a shortcut for a few classes.
+    </div>
+
+    <details class="more-box" style="margin-top: 28px;">
+      <summary>
+        <i class="fas fa-images" aria-hidden="true"></i>
+        More Finer-CAM examples <span class="sum-sub">NABirds &amp; Stanford Cars</span>
+        <i class="fas fa-chevron-down chev" aria-hidden="true"></i>
+      </summary>
+      <div class="more-body">
+        <figure class="figure flat" style="margin-top: 18px;">
+          <img src="static/images/finercam_vis.webp" width="2400" height="769" loading="lazy"
+               alt="Additional Finer-CAM attribution maps on NABirds and Stanford Cars comparing our method, Random, RAM-APL, and CCS.">
+          <figcaption>
+            <b>More Finer-CAM maps.</b> Across these examples, our model places more attribution on the object, while
+            models trained on Random, RAM-APL, and CCS subsets more often attend to the surrounding context.
+          </figcaption>
+        </figure>
+      </div>
+    </details>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     CASE STUDY: WATERBIRDS
+============================================================ -->
+<section class="section soft" id="waterbirds">
+  <div class="container">
+    <div class="sec-head">
+      <span class="eyebrow">Case Study &middot; Waterbirds</span>
+      <h2>Broader Coverage and Background Shortcuts</h2>
+      <p class="lead">In Waterbirds, bird type is spuriously correlated with the background. Our subsets contain more images that break this correlation.</p>
+    </div>
+
+    <div class="grid-2-1" style="align-items: start;">
+      <div class="prose">
+        <h3 class="sub-head"><span class="tag">Finding</span>More bias-conflicting images, without group labels</h3>
+        <p>
+          Bias-conflicting images, such as waterbirds on land, make up 18.8% of our subset, compared with under 10%
+          for the other selectors we compare. Our method does not use group labels.
+        </p>
+        <h3 class="sub-head" style="margin-top: 26px;"><span class="tag">Finding</span>Group composition explains part of the gain</h3>
+        <p>
+          Random subsets with the same label-background counts close only part of the gap to our subset, and filling
+          the same quotas with difficult images does worse. This suggests the improvement comes from both a more
+          favorable group composition and richer visual evidence within each group.
+        </p>
+      </div>
+      <div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Method</th><th>Counter-corr.</th><th>WGA &uarr;</th><th>All-bg &uarr;</th></tr>
+            </thead>
+            <tbody>
+              <tr class="ref"><td>Random</td><td>4.0</td><td>52.3</td><td>57.6</td></tr>
+              <tr><td>Forgetting</td><td>5.0</td><td>31.6</td><td>32.4</td></tr>
+              <tr><td>K-Center</td><td>5.4</td><td>57.5</td><td>72.6</td></tr>
+              <tr><td>Moderate</td><td>9.3</td><td><span class="second">60.5</span></td><td>78.3</td></tr>
+              <tr class="ours"><td>Ours</td><td>18.8</td><td><span class="best">68.6</span></td><td><span class="best">86.5</span></td></tr>
+              <tr class="group"><td colspan="4">Group-matched controls (same label-background counts as ours)</td></tr>
+              <tr><td>Random</td><td>18.8</td><td>63.7</td><td>84.2</td></tr>
+              <tr><td>Difficult</td><td>18.8</td><td>52.2</td><td>73.7</td></tr>
+              <tr><td>Easy</td><td>18.8</td><td>64.0</td><td><span class="second">85.8</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-caption">
+          <b>Waterbirds (%).</b> Counter-corr.: share of bias-conflicting images. WGA: worst-group accuracy.
+          All-bg: correct under all four backgrounds.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     WHAT MAKES IT WORK
+============================================================ -->
+<section class="section" id="design">
+  <div class="container">
+    <div class="sec-head">
+      <span class="eyebrow">Design Choices</span>
+      <h2>Representation and Neighborhood Weight</h2>
+      <p class="lead">
+        We look at two design choices: which features to measure concept support with, and how much weight to give
+        local support relative to coverage.
+      </p>
+    </div>
+
+    <div class="block">
+      <h3 class="sub-head"><span class="tag">Representation</span>SAE concepts give a clearer selection signal</h3>
+      <div class="grid-2 cols-2-1">
+        <figure class="figure">
+          <img src="static/images/feature_space_ablation.webp" width="1800" height="746" loading="lazy"
+               alt="Heatmaps on NABirds and Waterbirds of average performance when concept coverage and local support are computed from SAE features, DINO features, or removed. SAE for both components is best or near best.">
+          <figcaption>
+            <b>Representation ablation.</b> Rows: features for concept coverage; columns: features for local support
+            (<i>None</i> removes it).
+          </figcaption>
+        </figure>
+        <figure class="figure">
+          <img src="static/images/dino_vs_sae_distribution.webp" width="1000" height="864" loading="lazy"
+               alt="Average per-dimension activation density: DINO features follow a single bell-shaped distribution, while SAE features show multiple peaks.">
+          <figcaption>
+            <b>Why SAEs help.</b> Per-dimension activation density of DINO vs. SAE features.
+          </figcaption>
+        </figure>
+      </div>
+      <div class="prose narrow" style="margin-top: 26px;">
+        <p>
+          With the same objective, SAE features work best for concept coverage on NABirds, and moving local support
+          from DINO to SAE space helps most on Waterbirds. DINO dimensions are roughly normally distributed across
+          images, while SAE dimensions have multiple peaks, which separates images with different characteristics more
+          clearly and gives the objective a more informative signal about accumulated and rare concepts. The method
+          stays effective with concepts from other encoders (DINOv2, DINOv3-S/B, CLIP, SigLIP&nbsp;2).
+        </p>
+      </div>
+    </div>
+
+    <div class="block grid-1-1-center">
+      <div class="prose">
+        <h3 class="sub-head"><span class="tag">Balance</span>Weighting local support against coverage</h3>
+        <p>
+          The weight \(\beta\) controls how much local support counts relative to coverage. In all three settings we
+          test, a small amount of local support (\(\beta = 0.05\)) improves over coverage alone.
+        </p>
+        <p>
+          Fine-grained and spurious-correlation datasets work best at \(\beta = 0.05\), which keeps the emphasis on
+          broad coverage. Tiny-ImageNet, a general dataset with a wider range of concepts, works best with much stronger
+          local support (\(\beta = 2\)).
+        </p>
+      </div>
+      <figure class="figure">
+        <img src="static/images/beta_sweep.webp" width="1000" height="722" loading="lazy"
+             alt="Accuracy gain over beta equals zero as a function of neighborhood weight beta for general, fine-grained, and spurious datasets. Fine-grained and spurious peak at small beta; general peaks at beta equals 2.">
+        <figcaption>
+          <b>Effect of \(\beta\)</b> on general (Tiny-ImageNet), fine-grained (NABirds), and spurious-correlation
+          (Waterbirds) data.
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     BENCHMARK RESULTS (collapsed by default)
+============================================================ -->
+<section class="section soft" id="results">
+  <div class="container">
+    <div class="sec-head">
+      <span class="eyebrow">Benchmarks</span>
+      <h2>Benchmark Results</h2>
+      <p class="lead">
+        Our subsets give the best result at most budgets on NABirds, Stanford Cars, Waterbirds, and CLIP pretraining,
+        with the largest margins at small budgets. On Spawrious, EL2N and CCS score higher at most budgets.
+      </p>
+    </div>
+
+<!-- BEGIN:results-tables (generated by tools/tex_tables_to_html.py, do not edit by hand) -->
+    <details class="more-box">
+      <summary><i class="fas fa-table" aria-hidden="true"></i>Image classification <span class="sum-sub">ResNet-50 trained on the selected subset</span><i class="fas fa-chevron-down chev" aria-hidden="true"></i></summary>
+      <div class="more-body">
+    <div class="bench-grid">
+      <div class="bench">
+        <h4>NABirds <span class="metric">Accuracy</span></h4>
+        <div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Method</th><th>10%</th><th>20%</th><th>30%</th><th>50%</th><th>70%</th></tr></thead>
+          <tbody>
+            <tr class="ref"><td>Random</td><td>35.6</td><td>55.3</td><td>64.9</td><td>73.3</td><td>77.1</td></tr>
+            <tr><td>K-Center</td><td>31.6</td><td>54.4</td><td>64.9</td><td>74.1</td><td>77.8</td></tr>
+            <tr><td>Forgetting</td><td>22.4</td><td>49.8</td><td>63.3</td><td>74.3</td><td>78.1</td></tr>
+            <tr><td>EL2N</td><td>16.8</td><td>44.4</td><td>61.2</td><td>74.4</td><td><span class="best">78.5</span></td></tr>
+            <tr><td>Moderate</td><td>34.6</td><td>56.0</td><td>64.9</td><td>73.7</td><td>77.5</td></tr>
+            <tr><td>CCS</td><td><span class="second">39.7</span></td><td><span class="second">57.7</span></td><td>65.5</td><td>73.6</td><td>77.6</td></tr>
+            <tr><td>D<sup>2</sup>-Pruning</td><td>25.8</td><td>54.8</td><td><span class="second">66.6</span></td><td><span class="second">74.7</span></td><td>77.9</td></tr>
+            <tr><td>InfoMax</td><td>22.5</td><td>52.0</td><td>64.7</td><td>72.7</td><td>76.3</td></tr>
+            <tr><td>RAM-APL</td><td>39.3</td><td>54.7</td><td>61.7</td><td>69.8</td><td>74.8</td></tr>
+            <tr><td>SDM</td><td>37.5</td><td>56.3</td><td>64.5</td><td>73.7</td><td>78.2</td></tr>
+            <tr class="ours"><td>Ours</td><td><span class="best">42.9</span></td><td><span class="best">59.4</span></td><td><span class="best">67.4</span></td><td><span class="best">75.2</span></td><td><span class="second">78.3</span></td></tr>
+          </tbody>
+        </table></div>
+        <p class="full-ref">Full dataset (100%): 80.3</p>
+      </div>
+      <div class="bench">
+        <h4>Stanford Cars <span class="metric">Accuracy</span></h4>
+        <div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Method</th><th>10%</th><th>20%</th><th>30%</th><th>50%</th><th>70%</th></tr></thead>
+          <tbody>
+            <tr class="ref"><td>Random</td><td>21.9</td><td>45.2</td><td>63.1</td><td><span class="second">78.0</span></td><td>83.7</td></tr>
+            <tr><td>K-Center</td><td>16.6</td><td>39.1</td><td>56.3</td><td>77.5</td><td>83.9</td></tr>
+            <tr><td>Forgetting</td><td>11.8</td><td>37.0</td><td>56.7</td><td>72.2</td><td>81.1</td></tr>
+            <tr><td>EL2N</td><td>8.9</td><td>28.4</td><td>49.2</td><td>71.0</td><td>79.3</td></tr>
+            <tr><td>Moderate</td><td>19.7</td><td>45.9</td><td>59.8</td><td>77.3</td><td>83.8</td></tr>
+            <tr><td>CCS</td><td>23.6</td><td>49.3</td><td>62.7</td><td>77.8</td><td><span class="best">84.6</span></td></tr>
+            <tr><td>D<sup>2</sup>-Pruning</td><td>22.6</td><td><span class="second">50.9</span></td><td><span class="second">63.9</span></td><td>72.4</td><td>74.1</td></tr>
+            <tr><td>InfoMax</td><td>11.1</td><td>37.3</td><td>57.3</td><td>75.5</td><td>81.3</td></tr>
+            <tr><td>RAM-APL</td><td><span class="best">26.0</span></td><td><span class="second">50.9</span></td><td>61.5</td><td>73.9</td><td>81.0</td></tr>
+            <tr><td>SDM</td><td>20.6</td><td>45.4</td><td>62.5</td><td>76.8</td><td>82.4</td></tr>
+            <tr class="ours"><td>Ours</td><td><span class="second">23.9</span></td><td><span class="best">53.4</span></td><td><span class="best">65.3</span></td><td><span class="best">78.8</span></td><td><span class="second">84.0</span></td></tr>
+          </tbody>
+        </table></div>
+        <p class="full-ref">Full dataset (100%): 87.5</p>
+      </div>
+      <div class="bench">
+        <h4>Waterbirds <span class="metric">Worst-group accuracy</span></h4>
+        <div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Method</th><th>10%</th><th>20%</th><th>30%</th><th>50%</th><th>70%</th></tr></thead>
+          <tbody>
+            <tr class="ref"><td>Random</td><td>52.3</td><td>66.2</td><td>67.5</td><td>68.8</td><td><span class="second">79.1</span></td></tr>
+            <tr><td>K-Center</td><td>57.5</td><td>61.3</td><td>64.2</td><td><span class="best">79.4</span></td><td>69.1</td></tr>
+            <tr><td>Forgetting</td><td>31.6</td><td>43.6</td><td>60.1</td><td>73.4</td><td>77.0</td></tr>
+            <tr><td>EL2N</td><td>31.0</td><td>52.3</td><td>64.2</td><td>72.9</td><td>76.5</td></tr>
+            <tr><td>Moderate</td><td>60.5</td><td><span class="second">68.3</span></td><td>68.0</td><td>71.1</td><td>71.9</td></tr>
+            <tr><td>CCS</td><td>52.8</td><td>62.0</td><td>67.1</td><td>69.9</td><td>70.7</td></tr>
+            <tr><td>D<sup>2</sup>-Pruning</td><td>47.0</td><td>49.2</td><td>56.4</td><td>60.8</td><td>66.2</td></tr>
+            <tr><td>InfoMax</td><td>22.6</td><td>54.0</td><td>61.7</td><td>70.9</td><td>72.7</td></tr>
+            <tr><td>RAM-APL</td><td>30.2</td><td>38.8</td><td>51.2</td><td>65.0</td><td>68.2</td></tr>
+            <tr><td>SDM</td><td><span class="second">61.0</span></td><td>64.3</td><td><span class="second">70.4</span></td><td>75.2</td><td>74.4</td></tr>
+            <tr class="ours"><td>Ours</td><td><span class="best">68.6</span></td><td><span class="best">72.7</span></td><td><span class="best">77.9</span></td><td><span class="second">79.3</span></td><td><span class="best">79.8</span></td></tr>
+          </tbody>
+        </table></div>
+        <p class="full-ref">Full dataset (100%): 80.1</p>
+      </div>
+      <div class="bench">
+        <h4>Spawrious <span class="metric">Accuracy</span></h4>
+        <div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Method</th><th>10%</th><th>20%</th><th>30%</th><th>50%</th><th>70%</th></tr></thead>
+          <tbody>
+            <tr class="ref"><td>Random</td><td>63.8</td><td>67.4</td><td>72.6</td><td>68.8</td><td>69.5</td></tr>
+            <tr><td>K-Center</td><td>71.3</td><td>71.7</td><td>71.9</td><td>69.9</td><td>69.1</td></tr>
+            <tr><td>Forgetting</td><td>61.1</td><td>68.5</td><td>67.9</td><td><span class="second">74.3</span></td><td><span class="second">74.3</span></td></tr>
+            <tr><td>EL2N</td><td><span class="best">74.6</span></td><td><span class="best">74.3</span></td><td><span class="second">75.6</span></td><td>61.0</td><td>68.7</td></tr>
+            <tr><td>Moderate</td><td>70.4</td><td>72.0</td><td>72.7</td><td>68.4</td><td>67.3</td></tr>
+            <tr><td>CCS</td><td>72.9</td><td>73.4</td><td><span class="best">76.7</span></td><td><span class="best">75.3</span></td><td><span class="best">76.7</span></td></tr>
+            <tr><td>D<sup>2</sup>-Pruning</td><td>54.6</td><td>61.0</td><td>60.4</td><td>64.3</td><td>61.3</td></tr>
+            <tr><td>InfoMax</td><td>66.7</td><td>62.1</td><td>61.2</td><td>62.3</td><td>64.0</td></tr>
+            <tr><td>RAM-APL</td><td>45.5</td><td>46.0</td><td>47.2</td><td>51.1</td><td>53.3</td></tr>
+            <tr><td>SDM</td><td>71.4</td><td>71.8</td><td>70.9</td><td>72.0</td><td>74.0</td></tr>
+            <tr class="ours"><td>Ours</td><td><span class="second">74.3</span></td><td><span class="second">73.5</span></td><td>74.7</td><td>72.3</td><td>73.8</td></tr>
+          </tbody>
+        </table></div>
+        <p class="full-ref">Full dataset (100%): 76.3</p>
+      </div>
+    </div>
+    <p class="table-caption">Averaged over three runs. <b>Bold</b>: best; <u>underlined</u>: second best.</p>
+      </div>
+    </details>
+    <details class="more-box">
+      <summary><i class="fas fa-table" aria-hidden="true"></i>Multimodal pretraining <span class="sum-sub">CLIP ViT-B/16 trained on a CC12M subset</span><i class="fas fa-chevron-down chev" aria-hidden="true"></i></summary>
+      <div class="more-body">
+    <div class="bench-grid">
+      <div class="bench">
+        <h4>ImageNet-1K zero-shot <span class="metric">Accuracy</span></h4>
+        <div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Method</th><th>10%</th><th>20%</th><th>30%</th><th>50%</th><th>70%</th></tr></thead>
+          <tbody>
+            <tr class="ref"><td>Random</td><td>3.6</td><td>7.7</td><td>12.9</td><td>20.9</td><td>26.4</td></tr>
+            <tr><td>CLIP Score</td><td>3.2</td><td>9.9</td><td>15.2</td><td>23.9</td><td>28.6</td></tr>
+            <tr><td>K-center</td><td>1.7</td><td>6.8</td><td>10.7</td><td>21.5</td><td>29.3</td></tr>
+            <tr><td>Moderate</td><td>3.8</td><td>10.1</td><td>14.6</td><td>22.5</td><td>29.0</td></tr>
+            <tr><td>CCS</td><td><span class="second">4.0</span></td><td><span class="second">10.3</span></td><td><span class="second">15.4</span></td><td>22.5</td><td>25.2</td></tr>
+            <tr><td>D<sup>2</sup>-Pruning</td><td>2.5</td><td>8.8</td><td>14.4</td><td><span class="second">24.3</span></td><td><span class="second">29.6</span></td></tr>
+            <tr><td>Infomax</td><td>2.3</td><td>8.9</td><td>14.2</td><td>24.1</td><td>29.2</td></tr>
+            <tr class="ours"><td>Ours</td><td><span class="best">6.4</span></td><td><span class="best">12.4</span></td><td><span class="best">16.6</span></td><td><span class="best">25.9</span></td><td><span class="best">30.9</span></td></tr>
+          </tbody>
+        </table></div>
+        <p class="full-ref">Full dataset (100%): 32.4</p>
+      </div>
+      <div class="bench">
+        <h4>ImageNet-1K linear probe <span class="metric">Accuracy</span></h4>
+        <div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Method</th><th>10%</th><th>20%</th><th>30%</th><th>50%</th><th>70%</th></tr></thead>
+          <tbody>
+            <tr class="ref"><td>Random</td><td>21.6</td><td>30.1</td><td>39.1</td><td>48.1</td><td>54.2</td></tr>
+            <tr><td>CLIP Score</td><td>23.0</td><td>36.1</td><td>40.6</td><td>49.4</td><td>55.0</td></tr>
+            <tr><td>K-center</td><td>18.5</td><td>31.8</td><td>38.5</td><td>49.6</td><td>55.8</td></tr>
+            <tr><td>Moderate</td><td>22.3</td><td>34.9</td><td>41.7</td><td>50.1</td><td>55.8</td></tr>
+            <tr><td>CCS</td><td><span class="second">23.6</span></td><td><span class="second">36.3</span></td><td>42.5</td><td>50.0</td><td>53.5</td></tr>
+            <tr><td>D<sup>2</sup>-Pruning</td><td>22.3</td><td>36.0</td><td><span class="second">42.7</span></td><td><span class="second">51.7</span></td><td><span class="second">56.6</span></td></tr>
+            <tr><td>Infomax</td><td>22.1</td><td>36.1</td><td>41.4</td><td>51.2</td><td>55.9</td></tr>
+            <tr class="ours"><td>Ours</td><td><span class="best">24.7</span></td><td><span class="best">37.0</span></td><td><span class="best">43.9</span></td><td><span class="best">52.8</span></td><td><span class="best">57.3</span></td></tr>
+          </tbody>
+        </table></div>
+        <p class="full-ref">Full dataset (100%): 58.7</p>
+      </div>
+      <div class="bench">
+        <h4>Flickr30K image&rarr;text <span class="metric">Recall@1</span></h4>
+        <div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Method</th><th>10%</th><th>20%</th><th>30%</th><th>50%</th><th>70%</th></tr></thead>
+          <tbody>
+            <tr class="ref"><td>Random</td><td><span class="second">3.8</span></td><td>8.5</td><td>17.2</td><td>31.1</td><td>42.5</td></tr>
+            <tr><td>CLIP Score</td><td><span class="best">3.9</span></td><td>9.3</td><td>14.7</td><td>28.7</td><td>42.0</td></tr>
+            <tr><td>K-center</td><td>1.8</td><td>12.6</td><td>21.3</td><td><span class="best">38.4</span></td><td><span class="second">46.4</span></td></tr>
+            <tr><td>Moderate</td><td>3.1</td><td>11.0</td><td>19.1</td><td>32.8</td><td>43.3</td></tr>
+            <tr><td>CCS</td><td>3.7</td><td><span class="second">13.5</span></td><td><span class="second">22.3</span></td><td>35.4</td><td>41.7</td></tr>
+            <tr><td>D<sup>2</sup>-Pruning</td><td>2.5</td><td>9.6</td><td>20.0</td><td>33.5</td><td>44.9</td></tr>
+            <tr><td>Infomax</td><td>2.3</td><td>9.4</td><td>19.3</td><td>34.1</td><td>43.8</td></tr>
+            <tr class="ours"><td>Ours</td><td>3.7</td><td><span class="best">15.4</span></td><td><span class="best">24.7</span></td><td><span class="second">37.2</span></td><td><span class="best">48.7</span></td></tr>
+          </tbody>
+        </table></div>
+        <p class="full-ref">Full dataset (100%): 51.1</p>
+      </div>
+      <div class="bench">
+        <h4>Flickr30K text&rarr;image <span class="metric">Recall@1</span></h4>
+        <div class="table-wrap"><table class="data-table">
+          <thead><tr><th>Method</th><th>10%</th><th>20%</th><th>30%</th><th>50%</th><th>70%</th></tr></thead>
+          <tbody>
+            <tr class="ref"><td>Random</td><td><span class="best">3.1</span></td><td>6.8</td><td>11.4</td><td>22.4</td><td>30.5</td></tr>
+            <tr><td>CLIP Score</td><td>2.7</td><td>7.0</td><td>10.6</td><td>20.1</td><td>31.0</td></tr>
+            <tr><td>K-center</td><td>1.6</td><td>8.3</td><td>13.9</td><td><span class="second">26.7</span></td><td><span class="second">33.8</span></td></tr>
+            <tr><td>Moderate</td><td>2.4</td><td>8.3</td><td>13.0</td><td>22.9</td><td>32.4</td></tr>
+            <tr><td>CCS</td><td><span class="second">2.8</span></td><td><span class="second">10.0</span></td><td><span class="second">15.4</span></td><td>24.7</td><td>29.3</td></tr>
+            <tr><td>D<sup>2</sup>-Pruning</td><td>2.0</td><td>7.6</td><td>13.1</td><td>23.2</td><td>31.4</td></tr>
+            <tr><td>Infomax</td><td>2.1</td><td>7.3</td><td>12.7</td><td>23.5</td><td>30.8</td></tr>
+            <tr class="ours"><td>Ours</td><td>2.6</td><td><span class="best">10.2</span></td><td><span class="best">16.5</span></td><td><span class="best">27.6</span></td><td><span class="best">35.8</span></td></tr>
+          </tbody>
+        </table></div>
+        <p class="full-ref">Full dataset (100%): 38.1</p>
+      </div>
+    </div>
+    <p class="table-caption"><b>Bold</b>: best; <u>underlined</u>: second best.</p>
+      </div>
+    </details>
+<!-- END:results-tables -->
+  </div>
+</section>
+
+
+<!-- ============================================================
+     BIBTEX
+============================================================ -->
+<section class="section" id="bibtex">
+  <div class="container narrow">
+    <div class="sec-head" style="margin-bottom: 24px;">
+      <span class="eyebrow">Citation</span>
+      <h2>BibTeX</h2>
+    </div>
+    <!-- TODO: replace with the final arXiv / venue entry -->
+    <div class="bibtex">
+      <button class="copy-btn" type="button" id="copyBib"><i class="far fa-copy" aria-hidden="true"></i><span>Copy</span></button>
+      <pre id="bibText">@article{zhang2026mindthetail,
+  title   = {Mind the Tail: Data Selection Through Sparse Concepts},
+  author  = {Zhang, Ziheng and Hulkund, Neha and Lee, Colin and Mai, Zheda and
+             Shen, Hui and Ding, Ying and Berger-Wolf, Tanya and Beery, Sara and
+             Chao, Wei-Lun and Gu, Jianyang},
+  journal = {arXiv preprint arXiv:XXXX.XXXXX},
+  year    = {2026}
+}</pre>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <p id="contact">Contact: <a class="email" href="mailto:zhang.13617@osu.edu">zhang.13617@osu.edu</a> &middot; <a class="email" href="mailto:gu.1220@osu.edu">gu.1220@osu.edu</a></p>
+    <p>Supported by NSF OAC 2118240 and the Ohio Supercomputer Center.</p>
+  </div>
+</footer>
+
+</body>
+</html>
