@@ -1,0 +1,17 @@
+# TopK-32 SAE, 16384 latents, 100M training tokens.
+train_shards: ${OUTPUT_ROOT}/tokens/imagenet1k_train_shuffled/shards
+output_dir: ${OUTPUT_ROOT}/sae/topk32
+layer: 11
+d_sae: 16384
+top_k: 32
+aux_k: 512
+aux_alpha: 0.03125
+n_prefixes: 10
+dead_threshold_tokens: 10000000
+reinit_blend: 0.8
+n_train: 100000000
+batch_size: 16384
+lr: 0.001
+n_lr_warmup: 500
+grad_clip: 1.0
+seed: 42

@@ -1,0 +1,9 @@
+# Reconstruction metrics on ImageNet-1k val tokens; fidelity needs a linear probe
+# on mean-pooled final DINOv3 patch features (set probe: null to skip).
+checkpoint: ${OUTPUT_ROOT}/sae/topk32/sae.pt
+val_shards: ${OUTPUT_ROOT}/tokens/imagenet1k_val/shards
+output_dir: ${OUTPUT_ROOT}/sae/topk32/eval
+probe: ${DATA_ROOT}/probes/dinov3_vitb16_avgpatch_in1k
+dataset: imagefolder
+root: ${DATA_ROOT}/imagenet
+split: val

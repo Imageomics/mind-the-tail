@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "concept-coverage-selection"
+version = "0.1.0"
+description = "Data selection by neighborhood-weighted SAE concept coverage."
+requires-python = ">=3.11"
+dependencies = [
+  "torch>=2.4",
+  "torchvision>=0.19",
+  "transformers>=4.56",   # DINOv3
+  "numpy>=1.26,<2",
+  "scipy>=1.11",
+  "scikit-learn>=1.4",
+  "polars>=1.0",
+  "pyarrow>=15",
+  "pyyaml>=6",
+  "safetensors>=0.4",
+  "pillow>=10",
+  "hnswlib>=0.8",
+  "numba>=0.60",
+  "faiss-cpu>=1.8",
+]
+
+[project.optional-dependencies]
+# CLIP experiments use the open_clip package (training via open_clip_train). They were
+# run with open_clip 4.2.0.dev0 (unreleased); use that version or the closest release.
+clip = ["open_clip_torch[training]>=2.32"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

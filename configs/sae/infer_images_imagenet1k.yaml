@@ -1,0 +1,9 @@
+# Image-level SAE activations of the imagenet1k selection pool.
+dataset: imagefolder
+root: ${DATA_ROOT}/imagenet
+split: train
+checkpoint: ${OUTPUT_ROOT}/sae/topk32/sae.pt
+output_dir: ${OUTPUT_ROOT}/image_activations/imagenet1k
+images_per_shard: 10000
+batch_size: 32
+num_workers: 8

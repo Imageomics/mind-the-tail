@@ -1,0 +1,12 @@
+# DINOv3-B layer-11 patch tokens of ImageNet-1k train (SAE training data).
+output_dir: ${OUTPUT_ROOT}/tokens/imagenet1k_train
+dataset: imagefolder
+root: ${DATA_ROOT}/imagenet
+split: train
+backbone: facebook/dinov3-vitb16-pretrain-lvd1689m
+layer: 11
+n_patches: 196
+d_model: 768
+max_tokens_per_shard: 2400000
+batch_size: 128
+num_workers: 8

@@ -1,0 +1,8 @@
+# Evaluate the best spawrious checkpoint on the test split (overall + worst-group accuracy).
+checkpoint: ${OUTPUT_ROOT}/downstream/spawrious_10pct/checkpoints/best.pt
+dataset:
+  name: spawrious
+  root: ${DATA_ROOT}/spawrious
+  split: test
+output_dir: ${OUTPUT_ROOT}/downstream/spawrious_10pct/eval
+arch: resnet50

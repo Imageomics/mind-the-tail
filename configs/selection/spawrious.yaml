@@ -1,0 +1,15 @@
+# Within-class ranking of the spawrious training pool (beta=0.05, k=3, hnsw neighbors).
+image_activations: ${OUTPUT_ROOT}/image_activations/spawrious
+output_dir: ${OUTPUT_ROOT}/selection/spawrious
+mode: within_class
+beta: 0.05
+k: 3
+neighbors: hnsw
+hnsw:
+  projection_dim: 512
+  candidates: 50
+  m: 32
+  ef_construction: 200
+  ef_search: 100
+  threads: 8
+  seed: 0

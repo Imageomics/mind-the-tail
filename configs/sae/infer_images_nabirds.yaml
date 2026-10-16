@@ -1,0 +1,9 @@
+# Image-level SAE activations of the nabirds selection pool.
+dataset: nabirds
+root: ${DATA_ROOT}/nabirds
+split: train
+checkpoint: ${OUTPUT_ROOT}/sae/topk32/sae.pt
+output_dir: ${OUTPUT_ROOT}/image_activations/nabirds
+images_per_shard: 10000
+batch_size: 32
+num_workers: 8

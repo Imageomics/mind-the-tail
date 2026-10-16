@@ -1,0 +1,8 @@
+# Evaluate the best nabirds checkpoint on the test split.
+checkpoint: ${OUTPUT_ROOT}/downstream/nabirds_10pct/checkpoints/best.pt
+dataset:
+  name: nabirds
+  root: ${DATA_ROOT}/nabirds
+  split: test
+output_dir: ${OUTPUT_ROOT}/downstream/nabirds_10pct/eval
+arch: resnet50

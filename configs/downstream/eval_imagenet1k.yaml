@@ -1,0 +1,8 @@
+# Evaluate the best imagenet1k checkpoint on the val split.
+checkpoint: ${OUTPUT_ROOT}/downstream/imagenet1k_10pct/checkpoints/best.pt
+dataset:
+  name: imagefolder
+  root: ${DATA_ROOT}/imagenet
+  split: val
+output_dir: ${OUTPUT_ROOT}/downstream/imagenet1k_10pct/eval
+arch: resnet50

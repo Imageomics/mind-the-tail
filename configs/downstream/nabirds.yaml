@@ -1,0 +1,21 @@
+# ResNet-50 (ImageNet-pretrained) on the top-10% class-balanced nabirds subset.
+# Other budgets: --set ratio=0.3 output_dir=...
+selection_dir: ${OUTPUT_ROOT}/selection/nabirds
+ratio: 0.1
+dataset:
+  name: nabirds
+  root: ${DATA_ROOT}/nabirds
+  split: test
+output_dir: ${OUTPUT_ROOT}/downstream/nabirds_10pct
+arch: resnet50
+pretrained: true
+max_steps: 18700
+batch_size: 128
+eval_batch_size: 256
+lr: 0.001
+momentum: 0.9
+weight_decay: 0.0001
+scheduler: none
+eval_every_steps: 800
+num_workers: 24
+seed: 0

@@ -1,0 +1,12 @@
+# CC12M WebDataset shards (split = tar glob). Run one job per disjoint glob, e.g.
+# cc12m-train-00*.tar, cc12m-train-01*.tar, ..., each with its own output_dir, and
+# pass all output dirs to selection.large_scale.
+dataset: cc12m_wds
+root: ${DATA_ROOT}/cc12m-wds
+split: cc12m-train-*.tar
+checkpoint: ${OUTPUT_ROOT}/sae/topk32/sae.pt
+output_dir: ${OUTPUT_ROOT}/image_activations/cc12m
+images_per_shard: 10000
+batch_size: 32
+num_workers: 8
+skip_invalid_images: true

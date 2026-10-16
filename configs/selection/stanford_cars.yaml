@@ -1,0 +1,7 @@
+# Within-class ranking of the stanford_cars training pool (beta=0.05, k=3, exact neighbors).
+image_activations: ${OUTPUT_ROOT}/image_activations/stanford_cars
+output_dir: ${OUTPUT_ROOT}/selection/stanford_cars
+mode: within_class
+beta: 0.05
+k: 3
+neighbors: exact

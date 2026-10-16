@@ -1,0 +1,3 @@
+# Max-pool token latents into one sparse vector per image.
+token_dir: ${OUTPUT_ROOT}/sae_tokens/imagenet1k_val
+output_dir: ${OUTPUT_ROOT}/image_activations/imagenet1k_val

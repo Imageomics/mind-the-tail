@@ -1,0 +1,5 @@
+# Token-level SAE latents for pre-extracted token shards (here: ImageNet-1k val).
+shards_dir: ${OUTPUT_ROOT}/tokens/imagenet1k_val/shards
+sample_manifest: ${OUTPUT_ROOT}/tokens/imagenet1k_val/sample_manifest.parquet
+checkpoint: ${OUTPUT_ROOT}/sae/topk32/sae.pt
+output_dir: ${OUTPUT_ROOT}/sae_tokens/imagenet1k_val

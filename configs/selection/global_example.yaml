@@ -1,0 +1,8 @@
+# Unsupervised global ranking of a pool that fits in memory (labels unused).
+# For CC12M-scale pools use `python -m selection.large_scale` instead.
+image_activations: ${OUTPUT_ROOT}/image_activations/nabirds
+output_dir: ${OUTPUT_ROOT}/selection/nabirds_global
+mode: global
+beta: 0.05
+k: 3
+neighbors: exact

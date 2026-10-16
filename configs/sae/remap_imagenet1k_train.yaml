@@ -1,0 +1,4 @@
+# Shuffle ImageNet-1k train examples across token shards before SAE training.
+input_dir: ${OUTPUT_ROOT}/tokens/imagenet1k_train
+output_dir: ${OUTPUT_ROOT}/tokens/imagenet1k_train_shuffled
+seed: 42

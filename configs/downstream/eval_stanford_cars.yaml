@@ -1,0 +1,8 @@
+# Evaluate the best stanford_cars checkpoint on the test split.
+checkpoint: ${OUTPUT_ROOT}/downstream/stanford_cars_10pct/checkpoints/best.pt
+dataset:
+  name: imagefolder
+  root: ${DATA_ROOT}/stanford_cars
+  split: test
+output_dir: ${OUTPUT_ROOT}/downstream/stanford_cars_10pct/eval
+arch: resnet50

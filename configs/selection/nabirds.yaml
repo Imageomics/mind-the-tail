@@ -1,0 +1,7 @@
+# Within-class ranking of the nabirds training pool (beta=0.05, k=3, exact neighbors).
+image_activations: ${OUTPUT_ROOT}/image_activations/nabirds
+output_dir: ${OUTPUT_ROOT}/selection/nabirds
+mode: within_class
+beta: 0.05
+k: 3
+neighbors: exact

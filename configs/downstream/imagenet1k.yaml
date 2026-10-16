@@ -1,0 +1,20 @@
+# ResNet-50 from scratch on the top-10% class-balanced imagenet1k subset.
+selection_dir: ${OUTPUT_ROOT}/selection/imagenet1k
+ratio: 0.1
+dataset:
+  name: imagefolder
+  root: ${DATA_ROOT}/imagenet
+  split: val
+output_dir: ${OUTPUT_ROOT}/downstream/imagenet1k_10pct
+arch: resnet50
+pretrained: false
+max_steps: 400000
+batch_size: 256
+eval_batch_size: 256
+lr: 0.1
+momentum: 0.9
+weight_decay: 0.0001
+scheduler: cosine
+eval_every_steps: 4000
+num_workers: 16
+seed: 0
